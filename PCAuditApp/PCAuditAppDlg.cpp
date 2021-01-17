@@ -15,6 +15,8 @@
 #include <iostream>
 #include <fstream>
 #include <winternl.h>
+#include <algorithm>
+#include <regex>
 #pragma comment(lib, "IPHLPAPI.lib")
 
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
@@ -124,6 +126,76 @@ void CPCAuditAppDlg::OnBnClickedCancel()
 
 int CPCAuditAppDlg::SaveToCsv()
 {
+	char output[4096] = { 0 };
+	char buff[2048]= { 0 };
+
+	int osverMajor = 0;
+	int osverMinor = 0;
+
+	NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+
+	OSVERSIONINFOEXW osInfo;
+
+	*(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+
+	if (NULL != RtlGetVersion)
+	{
+		osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+		RtlGetVersion(&osInfo);
+		osverMajor = osInfo.dwMajorVersion;
+		osverMinor = osInfo.dwMinorVersion;
+
+
+		
+		//sprintf(buff, "%d.%d", osverMajor, osverMinor);
+		_ultoa(osverMajor, buff, 10);
+		strcat(output,buff);
+		strcat(output, ",");
+		_ultoa(osverMinor, buff, 10);
+		strcat(output, buff);
+	}
+
+	char proc_info[4096] = { 0 };
+	//char buff[2048];
+	
+	int CPUInfo[4] = { -1 };
+	unsigned   nExIds, y = 0;
+	char CPUBrandString[0x40];
+	// Get the information associated with each extended ID.
+	__cpuid(CPUInfo, 0x80000000);
+	nExIds = CPUInfo[0];
+	for (y = 0x80000000; y <= nExIds; ++y)
+	{
+		__cpuid(CPUInfo, y);
+		// Interpret CPU brand string
+		if (y == 0x80000002)
+			memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+		else if (y == 0x80000003)
+			memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+		else if (y == 0x80000004)
+			memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
+	}
+	//string includes manufacturer, model and clockspeed
+	
+	strcat(proc_info, CPUBrandString);
+
+
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	strcat(proc_info, ",");
+	sprintf(buff, "%d", sysInfo.dwNumberOfProcessors);
+	strcat(proc_info, buff);
+	strcat(proc_info, ",");
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	GlobalMemoryStatusEx(&statex);
+	
+	//sprintf(buff, "%d", (statex.ullTotalPhys / 1024) / 1024);
+	_ultoa((statex.ullTotalPhys / 1024) / 1024, buff, 10);
+	strcat(proc_info, buff);
+	strcat(proc_info, ",");
+
+
 	PIP_ADAPTER_INFO pAdapterInfo;
 	PIP_ADAPTER_INFO pAdapter = NULL;
 	DWORD dwRetVal = 0;
@@ -131,7 +203,7 @@ int CPCAuditAppDlg::SaveToCsv()
 
 	/* variables used to print DHCP time info */
 	struct tm newtime;
-	char buffer[32];
+	char buffer[32] = { 0 };
 	errno_t error;
 
 	ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
@@ -156,8 +228,8 @@ int CPCAuditAppDlg::SaveToCsv()
 			return 1;
 		}
 	}
-	char edit_text[4096];
-	char buff[2048];
+	char edit_text[4096] = { 0 };
+	//char buff[2048];
 	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
 		pAdapter = pAdapterInfo;
 		
@@ -182,6 +254,9 @@ int CPCAuditAppDlg::SaveToCsv()
 			strcat(edit_text, ",");
 			strcat(edit_text, userName);
 			strcat(edit_text, ",");
+			strcat(edit_text, output);
+			strcat(edit_text, ",");
+			strcat(edit_text, proc_info);
 			sprintf(buff, "%d", pAdapter->ComboIndex);
 			strcat(edit_text, buff);
 			strcat(edit_text, ",");
@@ -242,6 +317,9 @@ int CPCAuditAppDlg::SaveToCsv()
 			
 			strcat(edit_text, pAdapter->GatewayList.IpAddress.String);
 			strcat(edit_text, ",");
+
+			//*std::remove(edit_text, edit_text + strlen(edit_text), '\r\n') = '\0';
+
 			strcat(edit_text, "\r\n");
 			
 			
