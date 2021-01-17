@@ -1,18 +1,19 @@
 ﻿//{{NO_DEPENDENCIES}}
-// Plik dołączania wygenerowany w programie Microsoft Visual C++.
-// Używane przez PCAuditApp.rc
+// Plik dołączany wygenerowany przez środowisko Microsoft Visual C++.
+// Używany przez: PCAuditApp.rc
 //
-#define IDR_MAINFRAME					128
-#define IDD_PCAUDITAPP_DIALOG				102
+#define IDD_PCAUDITAPP_DIALOG           102
+#define IDR_MAINFRAME                   128
+#define IDC_EDIT1                       1000
+#define IDC_GETINFO                     1001
 
-// Następne wartości domyślne dla nowych obiektów
-//
+// Next default values for new objects
+// 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-
-#define _APS_NEXT_RESOURCE_VALUE	129
-#define _APS_NEXT_CONTROL_VALUE		1000
-#define _APS_NEXT_SYMED_VALUE		101
-#define _APS_NEXT_COMMAND_VALUE		32771
+#define _APS_NEXT_RESOURCE_VALUE        129
+#define _APS_NEXT_COMMAND_VALUE         32771
+#define _APS_NEXT_CONTROL_VALUE         1002
+#define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
