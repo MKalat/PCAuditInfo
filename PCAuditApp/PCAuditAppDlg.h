@@ -36,6 +36,8 @@ public:
 	afx_msg void OnBnClickedCancel();
 	int SaveToCsv();
 	int getAddressInfo();
+	void getProcessorInfo();
+	void getOSVersion();
 	CEdit edit1;
 	CButton zapisz_button;
 	CButton cancel_button;

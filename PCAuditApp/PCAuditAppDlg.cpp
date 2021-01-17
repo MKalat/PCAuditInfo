@@ -14,6 +14,7 @@
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
+#include <winternl.h>
 #pragma comment(lib, "IPHLPAPI.lib")
 
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
@@ -63,6 +64,8 @@ BOOL CPCAuditAppDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Ustaw małe ikony
 
 	// TODO: Dodaj tutaj dodatkowe inicjowanie
+	CPCAuditAppDlg::getOSVersion();
+	CPCAuditAppDlg::getProcessorInfo();
 	CPCAuditAppDlg::getAddressInfo();
 
 	return TRUE;  // zwracaj wartość TRUE, dopóki fokus nie zostanie ustawiony na formant
@@ -301,12 +304,14 @@ int CPCAuditAppDlg::getAddressInfo()
 			return 1;
 		}
 	}
+	char edit_content[4096];
+	edit1.GetWindowTextA(edit_content, 4096);
 	char edit_text[4096];
 	char buff[2048];
 	if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR) {
 		pAdapter = pAdapterInfo;
 		//IDD_IDC_EDIT1.SetWindowText((LPCTSTR)"");
-		strcpy(edit_text, "Detailed Computer Info");
+		strcpy(edit_text, "\r\nDetailed Computer Info");
 		
 		#define INFO_BUFFER_SIZE 32767
 		char infoBuf[INFO_BUFFER_SIZE];
@@ -439,11 +444,10 @@ int CPCAuditAppDlg::getAddressInfo()
 	sprintf(buff, "%d", dwRetVal);
 	strcat(edit_text, buff);
 	}
-	wchar_t w_edit_text[4096];
-	mbstowcs(w_edit_text, edit_text, strlen(edit_text) + 1);
+	strcat(edit_content, edit_text);
 
 	
-	edit1.SetWindowText(edit_text);
+	edit1.SetWindowText(edit_content);
 	if (pAdapterInfo)
 		FREE(pAdapterInfo);
 
@@ -453,5 +457,86 @@ int CPCAuditAppDlg::getAddressInfo()
 
 void CPCAuditAppDlg::OnBnClickedGetinfo()
 {
+	CPCAuditAppDlg::getOSVersion();
+	CPCAuditAppDlg::getProcessorInfo();
 	CPCAuditAppDlg::getAddressInfo();
+}
+
+void CPCAuditAppDlg::getProcessorInfo()
+{
+	char edit_content[4096];
+	edit1.GetWindowTextA(edit_content, 4096);
+	char output[4096];
+	char buff[2048];
+	strcpy(output, "\r\nProcessor and Memory Info :");
+	int CPUInfo[4] = { -1 };
+	unsigned   nExIds, i = 0;
+	char CPUBrandString[0x40];
+	// Get the information associated with each extended ID.
+	__cpuid(CPUInfo, 0x80000000);
+	nExIds = CPUInfo[0];
+	for (i = 0x80000000; i <= nExIds; ++i)
+	{
+		__cpuid(CPUInfo, i);
+		// Interpret CPU brand string
+		if (i == 0x80000002)
+			memcpy(CPUBrandString, CPUInfo, sizeof(CPUInfo));
+		else if (i == 0x80000003)
+			memcpy(CPUBrandString + 16, CPUInfo, sizeof(CPUInfo));
+		else if (i == 0x80000004)
+			memcpy(CPUBrandString + 32, CPUInfo, sizeof(CPUInfo));
+	}
+	//string includes manufacturer, model and clockspeed
+	strcat(output, "\r\nCPU Type: ");
+	strcat(output, CPUBrandString);
+
+
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	strcat(output, "\r\nNumber of Cores: ");
+	sprintf(buff, "%d", sysInfo.dwNumberOfProcessors);
+	strcat(output,buff);
+
+	MEMORYSTATUSEX statex;
+	statex.dwLength = sizeof(statex);
+	GlobalMemoryStatusEx(&statex);
+	strcat(output, "\r\nTotal System Memory: ");
+	sprintf(buff, "%lu", (statex.ullTotalPhys / 1024) / 1024);
+	strcat(output,buff);
+	strcat(output, "MB");
+	strcat(edit_content, output);
+	edit1.SetWindowTextA(edit_content);
+}
+
+void CPCAuditAppDlg::getOSVersion()
+{
+	char edit_content[4096];
+	edit1.GetWindowTextA(edit_content, 4096);
+	char output[4096];
+	char buff[2048];
+	
+	int osverMajor = 0;
+	int osverMinor = 0;
+
+	NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+
+	OSVERSIONINFOEXW osInfo;
+
+	*(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+
+	if (NULL != RtlGetVersion)
+	{
+		osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+		RtlGetVersion(&osInfo);
+		osverMajor = osInfo.dwMajorVersion;
+		osverMinor = osInfo.dwMinorVersion;
+
+
+		strcpy(output, "OS Version Information");
+		strcat(output, "\r\nWindows version: ");
+		sprintf(buff, "%u.%u", osverMajor, osverMinor);
+		strcat(output, buff);
+		strcat(edit_content, output);
+		edit1.SetWindowTextA(edit_content);
+	}
 }
